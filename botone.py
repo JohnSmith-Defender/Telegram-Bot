@@ -100,9 +100,11 @@ Step carefully… 🌑✨""",
 async def send_welcome_message(update, context):
     global cur_member_index
     global random_index
-    if cur_member_index % 3 == 0:
+    if cur_member_index % 4 == 3:
         random_index = random.randint(0, len(welcome_texts) - 1)
         selected_image = welcome_images[random_index]
+    else:
+        return
     cur_member_index = cur_member_index + 1
     selected_text = welcome_texts[random_index]
 
