@@ -98,7 +98,9 @@ Step carefully… 🌑✨""",
 
 # Send a welcome message with a random image and greeting
 async def send_welcome_message(update, context):
-    if(cur_member_index%3==0):
+    global cur_member_index
+    global random_index
+    if cur_member_index % 3 == 0:
         random_index = random.randint(0, len(welcome_texts) - 1)
         selected_image = welcome_images[random_index]
     cur_member_index = cur_member_index + 1
@@ -121,6 +123,9 @@ async def handle_button_click(update: Update, context: ContextTypes.DEFAULT_TYPE
     user_id, data = query.data.split(':')
     user_id = int(user_id)
 
+    # Get the original message sent for verification
+    verification_message = query.message
+
     if data == "verify":
         # Handle the verification process
         user_data = context.bot_data.get(user_id, {})
@@ -131,6 +136,8 @@ async def handle_button_click(update: Update, context: ContextTypes.DEFAULT_TYPE
             if selected_emoji == correct_emoji:
                 execute_query('UPDATE users SET verified = 1 WHERE user_id = ?', (user_id,))
                 check_and_update_referer(user_id)
+                # Delete the verification message
+                await context.bot.delete_message(chat_id=verification_message.chat.id, message_id=verification_message.message_id)
                 await query.answer(text="✅ Correct! You are verified!")
                 await send_welcome_message(update, context)
             else:
@@ -216,18 +223,18 @@ async def handle_join_request(update: Update, context: ContextTypes.DEFAULT_TYPE
     await context.bot.approve_chat_join_request(chat_id=join_request.chat.id, user_id=user_id)
 
 async def handle_user_leave(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    for member in update.message.left_chat_members:
-        user_id = member.id
-        
-        # Find the referrer ID for the user who left
-        referer = fetch_one_query('SELECT referer FROM users WHERE user_id = ?', (user_id,))
-        
-        if referer and referer[0] is not None:
-            referer_id = referer[0]  # Get the referrer ID
+    member = update.message.left_chat_member
+    user_id = member.id
+    
+    # Find the referrer ID for the user who left
+    referer = fetch_one_query('SELECT referer FROM users WHERE user_id = ?', (user_id,))
+    
+    if referer and referer[0] is not None:
+        referer_id = referer[0]  # Get the referrer ID
 
-            # Decrement the referrer’s count
-            execute_query('UPDATE users SET referCount = referCount - 1 WHERE user_id = ?', (referer_id,))
-            print(f'Decremented referer ID: {referer_id}, New count: {fetch_one_query("SELECT referCount FROM users WHERE user_id = ?", (referer_id,))[0]}')
+        # Decrement the referrer’s count
+        execute_query('UPDATE users SET referCount = referCount - 1 WHERE user_id = ?', (referer_id,))
+        print(f'Decremented referer ID: {referer_id}, New count: {fetch_one_query("SELECT referCount FROM users WHERE user_id = ?", (referer_id,))[0]}')
 
 # Check messages to prevent unverified users from sending messages
 async def check_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
