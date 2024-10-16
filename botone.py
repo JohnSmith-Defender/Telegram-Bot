@@ -70,6 +70,15 @@ async def start_verification(user_id, username, update, context:ContextTypes.DEF
     emoji_list = random.sample(emojis, len(emojis))
     correct_emoji = random.choice(emoji_list)
     context.bot_data[user_id] = {'correct_emoji': correct_emoji, 'attempts': 0, 'emoji_list':emoji_list}
+    # Create a unique referral link for the user
+    chat_id = update.effective_chat.id
+    invite_link = await context.bot.create_chat_invite_link(chat_id, name=f"Referral-{username}")
+    refer_link_val = invite_link.invite_link
+
+    execute_query('''
+        INSERT OR REPLACE INTO users (user_id, userName, joinedTime, referLink, referer, currentViolatePoint)
+        VALUES (?, ?, ?, ?, ?, 0)
+    ''', (user_id, username, datetime.now().strftime("%Y-%m-%d %H:%M:%S"), refer_link_val, None))
 
     # Arrange emojis in two rows, 5 per row
     buttons = [
@@ -137,11 +146,10 @@ async def handle_button_click(update: Update, context: ContextTypes.DEFAULT_TYPE
         if selected_emoji:
             if selected_emoji == correct_emoji:
                 execute_query('UPDATE users SET verified = 1 WHERE user_id = ?', (user_id,))
-                check_and_update_referer(user_id)
                 # Delete the verification message
-                await context.bot.delete_message(chat_id=verification_message.chat.id, message_id=verification_message.message_id)
                 await query.answer(text="✅ Correct! You are verified!")
                 await send_welcome_message(update, context)
+                await context.bot.delete_message(chat_id=verification_message.chat.id, message_id=verification_message.message_id)
             else:
                 attempts += 1
                 context.bot_data[user_id]['attempts'] = attempts
@@ -175,11 +183,9 @@ async def handle_violation(user_id, query, context):
     execute_query('UPDATE users SET currentViolatePoint = currentViolatePoint + 1 WHERE user_id = ?', (user_id,))
     violation_count = fetch_one_query('SELECT currentViolatePoint FROM users WHERE user_id = ?', (user_id,))[0]
 
-    if violation_count >= 3:
-        await context.bot.ban_chat_member(chat_id=query.message.chat_id, user_id=user_id)
-        await query.answer(text="❌ You failed 3 times. You are now banned.")
-    else:
-        await query.answer(text=f"❌ Wrong! You have {3 - violation_count} violation(s) left.")
+    if violation_count :
+        if violation_count >= 3:
+            await context.bot.ban_chat_member(chat_id=query.message.chat_id, user_id=user_id)
 
 # Handle new user join event using MessageHandler
 async def handle_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -211,12 +217,9 @@ async def handle_join_request(update: Update, context: ContextTypes.DEFAULT_TYPE
     invite_link = await context.bot.create_chat_invite_link(chat_id, name=f"Referral-{username}")
     refer_link_val = invite_link.invite_link
 
-    referer_id = fetch_one_query()
-
-
     execute_query('''
-        INSERT OR REPLACE INTO users (user_id, userName, joinedTime, referLink, referer)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT OR REPLACE INTO users (user_id, userName, joinedTime, referLink, referer, currentViolatePoint)
+        VALUES (?, ?, ?, ?, ?, 0)
     ''', (user_id, username, datetime.now().strftime("%Y-%m-%d %H:%M:%S"), refer_link_val, referer_id))
 
     check_and_update_referer(refer_link)
@@ -241,7 +244,7 @@ async def handle_user_leave(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # Check messages to prevent unverified users from sending messages
 async def check_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    result = fetch_one_query('SELECT verified, currentViolatePoint FROM users WHERE user_id = ?', (user_id,))
+    result = fetch_one_query('SELECT verified FROM users WHERE user_id = ?', (user_id,))
 
     if result and result[0] == 1:
         return
@@ -307,8 +310,8 @@ async def myreferlink(update: Update, context: ContextTypes.DEFAULT_TYPE):
         invite_link = await context.bot.create_chat_invite_link(chat_id, name=f"Referral-{username}", creates_join_request=True)
         
         execute_query('''
-        INSERT OR REPLACE INTO users (user_id, userName, joinedTime, referLink)
-        VALUES (?, ?, ?, ?)
+        INSERT OR REPLACE INTO users (user_id, userName, joinedTime, referLink, currentViolatePoint, verified)
+        VALUES (?, ?, ?, ?, 0, true)
     ''', (user_id, username, datetime.now().strftime("%Y-%m-%d %H:%M:%S"), invite_link.invite_link))
 
         refer_link = invite_link.invite_link
