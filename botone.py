@@ -336,7 +336,7 @@ async def myreferlink(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 if __name__ == "__main__":
-    application = ApplicationBuilder().token("7299156510:AAE2pbFl88uz1C-yMkiW7IynSkgIxfEoN4w").build()
+    application = ApplicationBuilder().token("7747378673:AAFlj07rCmCJQkcqEYpkVJ5ZtVujkq54zxI").build()
 
     # Add handlers
     application.add_handler(CallbackQueryHandler(handle_button_click))
