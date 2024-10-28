@@ -93,7 +93,7 @@ async def start_verification(user_id, username, update, context:ContextTypes.DEF
     
     reply_markup = InlineKeyboardMarkup(buttons)
 
-    await context.bot.send_message(
+    message = await context.bot.send_message(
         chat_id=update.effective_chat.id,
         text=f"""🕯️ Welcome, traveler! 🕯️
 I am Edgar, the gatekeeper of HAUNTED LAND. To walk among the shadows of our forbidden order, you must first prove you're not a ghoul! 🧟‍♂️ The first step is simple: choose the right emoji, and reveal your true self. 🧠Your answer awaits with: {correct_emoji}.
@@ -104,6 +104,16 @@ Step carefully… 🌑✨""",
         reply_markup=reply_markup,
         parse_mode="Markdown"
     )
+
+    asyncio.create_task(delete_message_after_timeout(message, context, 10))
+
+async def delete_message_after_timeout(message, context, timeout):
+    await asyncio.sleep(timeout)
+    try:
+        await context.bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
+        print(f"Deleted message {message.message_id} after {timeout} seconds.")
+    except Exception as e:
+        print(f"Error deleting message: {e}")
 
 # Send a welcome message with a random image and greeting
 async def send_welcome_message(update, context):
@@ -326,7 +336,7 @@ async def myreferlink(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 if __name__ == "__main__":
-    application = ApplicationBuilder().token("7747378673:AAFlj07rCmCJQkcqEYpkVJ5ZtVujkq54zxI").build()
+    application = ApplicationBuilder().token("7299156510:AAE2pbFl88uz1C-yMkiW7IynSkgIxfEoN4w").build()
 
     # Add handlers
     application.add_handler(CallbackQueryHandler(handle_button_click))
