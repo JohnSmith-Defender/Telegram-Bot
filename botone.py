@@ -105,7 +105,7 @@ Step carefully… 🌑✨""",
         parse_mode="Markdown"
     )
 
-    asyncio.create_task(delete_message_after_timeout(message, context, 10))
+    asyncio.create_task(delete_message_after_timeout(message, context, 120))
 
 async def delete_message_after_timeout(message, context, timeout):
     await asyncio.sleep(timeout)
@@ -141,6 +141,7 @@ def check_and_update_referer(refer_link):
 # Handle verification button clicks
 async def handle_button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    chat_id = update.callback_query.message.chat.id
     user_id, data = query.data.split(':')
     user_id = int(user_id)
 
@@ -164,7 +165,7 @@ async def handle_button_click(update: Update, context: ContextTypes.DEFAULT_TYPE
                 attempts += 1
                 context.bot_data[user_id]['attempts'] = attempts
                 if attempts >= 3:
-                    await handle_violation(user_id, query, context)
+                    await handle_violation(user_id, chat_id, context)
                 else:
                     await query.answer(text=f"❌ Wrong! You have {3 - attempts} attempt(s) left.")
         else:
@@ -189,13 +190,9 @@ async def handle_button_click(update: Update, context: ContextTypes.DEFAULT_TYPE
         await query.edit_message_reply_markup(reply_markup=reply_markup)
 
 # Handle violations and ban user if needed
-async def handle_violation(user_id, query, context):
+async def handle_violation(user_id, chat_id, context):
     execute_query('UPDATE users SET currentViolatePoint = currentViolatePoint + 1 WHERE user_id = ?', (user_id,))
     violation_count = fetch_one_query('SELECT currentViolatePoint FROM users WHERE user_id = ?', (user_id,))[0]
-
-    if violation_count :
-        if violation_count >= 3:
-            await context.bot.ban_chat_member(chat_id=query.message.chat_id, user_id=user_id)
 
 # Handle new user join event using MessageHandler
 async def handle_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -336,7 +333,7 @@ async def myreferlink(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 if __name__ == "__main__":
-    application = ApplicationBuilder().token("7747378673:AAFlj07rCmCJQkcqEYpkVJ5ZtVujkq54zxI").build()
+    application = ApplicationBuilder().token("7299156510:AAE2pbFl88uz1C-yMkiW7IynSkgIxfEoN4w").build()
 
     # Add handlers
     application.add_handler(CallbackQueryHandler(handle_button_click))
